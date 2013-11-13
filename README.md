@@ -1,6 +1,10 @@
 # RemoteSyslog
 
-TODO: Write a gem description
+Allows streaming log messages to any Syslog compliant log server. The messages
+will be streamed over TCP, ensure reliable delivery.
+
+It is possible to configure RemoteSyslog with multiple Syslog backends - if a
+backend fails, another will be chosen instead.
 
 ## Installation
 
@@ -18,7 +22,10 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+logger = RemoteSyslog::Logger.new("syslog1.example.com:6514", "syslog2.example.com:6514")
+logger.info "HELLO WORLD!"
+```
 
 ## Contributing
 

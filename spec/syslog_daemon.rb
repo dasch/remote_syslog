@@ -20,7 +20,7 @@ class SyslogDaemon
   end
 
   def close
-    @server.close
+    @server.close unless @server.closed?
   end
 
   def address

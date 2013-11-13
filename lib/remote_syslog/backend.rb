@@ -14,6 +14,8 @@ module RemoteSyslog
       socket.flush
     rescue Errno::EPIPE
       @socket = nil
+
+      raise BackendFailure
     end
 
     def alive?

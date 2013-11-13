@@ -2,6 +2,8 @@ require 'syslog_protocol'
 require 'remote_syslog/backend'
 
 module RemoteSyslog
+  NoAvailableBackend = Class.new(StandardError)
+
   class Logger
     SEVERITIES = %w(debug info warn error fatal unknown)
 
@@ -30,6 +32,8 @@ module RemoteSyslog
       packet.content = message
 
       begin
+        raise NoAvailableBackend if backend.nil?
+
         backend.send(packet.assemble)
       rescue BackendFailure
         @backend = nil

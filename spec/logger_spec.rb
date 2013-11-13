@@ -58,4 +58,13 @@ describe RemoteSyslog::Logger do
     backend1.messages.should == ["HELO"]
     backend2.messages.should == ["WORLD"]
   end
+
+  it "fails if there are no working backends" do
+    backend1.exit
+    backend2.exit
+
+    expect {
+      logger.info "HELO"
+    }.to raise_exception(RemoteSyslog::NoAvailableBackend)
+  end
 end

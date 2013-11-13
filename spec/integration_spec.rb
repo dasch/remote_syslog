@@ -40,4 +40,12 @@ describe RemoteSyslog::Logger do
 
     syslog.packets.map(&:content).should == ["TESTER TESTER"]
   end
+
+  it "fails hard if there are no available backends" do
+    logger = RemoteSyslog::Logger.new("localhost:1234")
+
+    expect {
+      logger.info "HELO"
+    }.to raise_exception(RemoteSyslog::NoAvailableBackend)
+  end
 end

@@ -1,43 +1,61 @@
 require 'remote_syslog/logger'
-require 'syslog_daemon'
 
 describe RemoteSyslog::Logger do
-  let(:port) { 2323 }
-  let(:syslog) { SyslogDaemon.new(port) }
-  let(:logger) { RemoteSyslog::Logger.new(syslog.address) }
+  class FakeBackend
+    attr_reader :messages
 
-  after do
-    syslog.close
+    def initialize
+      @messages = []
+      @alive = true
+    end
+
+    def exit
+      @alive = false
+    end
+
+    def alive?
+      @alive
+    end
+
+    def send(data)
+      raise RemoteSyslog::BackendFailure unless alive?
+
+      packet = SyslogProtocol.parse(data)
+      @messages << packet.content
+    end
   end
 
-  it "sends messages to a remote syslog daemon" do
-    logger.info "TESTING 1-2-3"
+  let(:backend1) { FakeBackend.new }
+  let(:backend2) { FakeBackend.new }
+  let(:logger) { RemoteSyslog::Logger.new("foo", "bar") }
 
-    syslog.packets.map(&:content).should == ["TESTING 1-2-3"]
+  before do
+    RemoteSyslog::Backend.stub(:new).with("foo") { backend1 }
+    RemoteSyslog::Backend.stub(:new).with("bar") { backend2 }
   end
 
-  it "supports all the log levels" do
-    logger.debug("I like big butts")
-    logger.info("And I cannot lie")
-    logger.warn("You other brothers can't deny")
-    logger.error("That when a girl walks in with an itty bitty waist")
-    logger.fatal("And a round thing in your face")
-    logger.unknown("You get sprung, wanna pull out your tough")
+  it "transmits log entries using the first available backend" do
+    logger.info "HELO"
 
-    syslog.packets.map {|p| [p.severity_name, p.content] }.should == [
-      ["debug", "I like big butts"],
-      ["info",  "And I cannot lie"],
-      ["warn",  "You other brothers can't deny"],
-      ["err",   "That when a girl walks in with an itty bitty waist"],
-      ["crit",  "And a round thing in your face"],
-      ["debug", "You get sprung, wanna pull out your tough"],
-    ]
+    backend1.messages.should == ["HELO"]
   end
 
-  it "falls back to the second syslog address if the first doesn't work" do
-    logger = RemoteSyslog::Logger.new("localhost:4242", syslog.address)
-    logger.info "TESTER TESTER"
+  it "falls back to using the second backend if the first one doesn't work" do
+    backend1.exit
 
-    syslog.packets.map(&:content).should == ["TESTER TESTER"]
+    logger.info "HELO"
+
+    backend2.messages.should == ["HELO"]
+  end
+
+  it "resends an entry using a different backend if the first one fails" do
+    logger.info "HELO"
+
+    backend1.exit
+
+    logger.info "WORLD"
+
+    backend1.messages.should == ["HELO"]
+    backend2.messages.should == ["WORLD"]
   end
 end

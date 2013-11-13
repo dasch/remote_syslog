@@ -1,4 +1,5 @@
 require 'syslog_protocol'
+require 'remote_syslog/backend'
 
 module RemoteSyslog
   class Logger
@@ -11,7 +12,7 @@ module RemoteSyslog
     }
 
     def initialize(*addresses)
-      @addresses = addresses
+      @backends = addresses.map {|address| Backend.new(address) }
     end
 
     SEVERITIES.each do |severity|
@@ -27,27 +28,25 @@ module RemoteSyslog
       packet.tag = "foo"
       packet.severity = map_severity(severity)
       packet.content = message
-      socket.puts(packet.assemble)
-      socket.flush
+
+      begin
+        backend.send(packet.assemble)
+      rescue BackendFailure
+        @backend = nil
+        retry
+      end
     end
 
     def map_severity(severity)
       SEVERITY_MAPPING.fetch(severity, severity)
     end
 
-    def socket
-      @socket ||= first_working_socket
+    def backend
+      @backend ||= first_working_backend
     end
 
-    def first_working_socket
-      @addresses.each do |address|
-        begin
-          host, port = address.split(":")
-          return TCPSocket.new(host, port)
-        rescue Errno::ECONNREFUSED
-          next
-        end
-      end
+    def first_working_backend
+      @backends.find {|backend| backend.alive? }
     end
   end
 end

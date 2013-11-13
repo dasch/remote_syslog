@@ -6,6 +6,10 @@ describe RemoteSyslog::Logger do
   let(:syslog) { SyslogDaemon.new(port) }
   let(:logger) { RemoteSyslog::Logger.new(syslog.address) }
 
+  after do
+    syslog.close
+  end
+
   it "sends messages to a remote syslog daemon" do
     logger.info "TESTING 1-2-3"
 
@@ -28,5 +32,12 @@ describe RemoteSyslog::Logger do
       ["crit",  "And a round thing in your face"],
       ["debug", "You get sprung, wanna pull out your tough"],
     ]
+  end
+
+  it "falls back to the second syslog address if the first doesn't work" do
+    logger = RemoteSyslog::Logger.new("localhost:4242", syslog.address)
+    logger.info "TESTER TESTER"
+
+    syslog.packets.map(&:content).should == ["TESTER TESTER"]
   end
 end

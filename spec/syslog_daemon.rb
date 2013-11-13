@@ -19,6 +19,10 @@ class SyslogDaemon
     end
   end
 
+  def close
+    @server.close
+  end
+
   def address
     "localhost:#{port}"
   end

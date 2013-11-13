@@ -10,8 +10,8 @@ module RemoteSyslog
       "unknown" => "debug",
     }
 
-    def initialize(address)
-      @address = address
+    def initialize(*addresses)
+      @addresses = addresses
     end
 
     SEVERITIES.each do |severity|
@@ -36,19 +36,18 @@ module RemoteSyslog
     end
 
     def socket
-      @socket ||= TCPSocket.new(host, port)
+      @socket ||= first_working_socket
     end
 
-    def host
-      address_parts[0]
-    end
-
-    def port
-      address_parts[1]
-    end
-
-    def address_parts
-      @address.split(":")
+    def first_working_socket
+      @addresses.each do |address|
+        begin
+          host, port = address.split(":")
+          return TCPSocket.new(host, port)
+        rescue Errno::ECONNREFUSED
+          next
+        end
+      end
     end
   end
 end
